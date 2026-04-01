@@ -1,5 +1,4 @@
-
-        import streamlit as st
+import streamlit as st
 import base64
 
 # ---------------- BACKGROUND FUNCTION ---------------- #
@@ -356,10 +355,19 @@ elif module == "📄 PDF":
 
         st.success("✅ Translation + Speech Completed!")
 
-   
 
    
+  
+   
+
+
         
+   
+      
+
+       
+
+           
                     
    
 
