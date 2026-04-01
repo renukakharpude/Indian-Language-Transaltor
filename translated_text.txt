@@ -1,4 +1,5 @@
 streamlit
+SpeechRecognition
 gtts
 deep-translator
 pillow
@@ -6,3 +7,4 @@ moviepy
 yt-dlp
 PyMuPDF
 openai-whisper
+pytesseract
