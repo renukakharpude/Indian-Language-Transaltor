@@ -25,10 +25,6 @@ def set_bg(image_file):
     html, body, [class*="css"] {{
         color: black !important;
     }}
-
-    h1, h2, h3, h4, h5, h6, p, label, span, div {{
-        color: black !important;
-    }}
     </style>
     """
     st.markdown(bg_style, unsafe_allow_html=True)
@@ -36,254 +32,161 @@ def set_bg(image_file):
 # ---------------- UI CONFIG ---------------- #
 st.set_page_config(page_title="AI Language Translator", layout="wide")
 
-# 👉 SET BACKGROUND IMAGE
 set_bg("image.png")
 
 # ---------------- SIDEBAR ---------------- #
 st.sidebar.title("🌍 Language Translator")
+
+# ❌ Removed Voice (causes error in cloud)
 module = st.sidebar.radio(
     "Select Module",
-    ["🏠 Home", "🎤 Voice", "🖼 Image", "🎬 Video", "📄 PDF"]
+    ["🏠 Home", "🎬 Video", "📄 PDF"]
 )
 
 # ---------------- LANGUAGES ---------------- #
 languages = {
     "Hindi": "hi", "Marathi": "mr", "Gujarati": "gu",
-    "Punjabi": "pa", "Bengali": "bn", "Assamese": "as",
-    "Odia": "or", "Tamil": "ta", "Telugu": "te",
-    "Kannada": "kn", "Malayalam": "ml", "Urdu": "ur",
-    "Sanskrit": "sa", "Konkani": "gom", "Manipuri": "mni",
-    "Bodo": "brx", "Dogri": "doi", "Maithili": "mai",
-    "Santali": "sat", "Sindhi": "sd", "Kashmiri": "ks",
-    "Nepali": "ne", "English": "en"
+    "Tamil": "ta", "Telugu": "te", "Kannada": "kn",
+    "Malayalam": "ml", "Bengali": "bn", "English": "en"
 }
 
 # ---------------- HOME ---------------- #
 if module == "🏠 Home":
     st.markdown("<h1 style='text-align:center;'>🌍 Indian Language Translator</h1>", unsafe_allow_html=True)
 
+    st.warning("⚠️ Voice & Image OCR features are disabled in cloud. Run locally for full features.")
+
     st.markdown("""
     ### 🚀 Features
-    - 🎤 Real-Time Voice Translation  
-    - 🖼 Image OCR Translation  
     - 🎬 Video Translation  
     - 📄 PDF to Speech  
 
     ---
     ### 🧠 Technologies
     - Whisper (AI Speech Recognition)
-    - Tesseract OCR
     - Google Translator
     - gTTS (Speech Output)
     """)
 
-# ---------------- VOICE ---------------- #
-elif module == "🎤 Voice":
-    import speech_recognition as sr
-    from deep_translator import GoogleTranslator
-    from gtts import gTTS
-
-    st.title("🎤 Real-Time Voice Translator")
-
-    lang = st.selectbox("Select Language", list(languages.keys()))
-
-    if st.button("Start Recording"):
-        try:
-            r = sr.Recognizer()
-            with sr.Microphone() as source:
-                st.info("Speak now...")
-                audio = r.listen(source)
-
-            text = r.recognize_google(audio)
-            st.success(text)
-
-            translated = GoogleTranslator(source="auto", target=languages[lang]).translate(text)
-            st.success(translated)
-
-            tts = gTTS(translated, lang=languages[lang])
-            tts.save("voice.mp3")
-            st.audio("voice.mp3")
-
-        except Exception as e:
-            st.error(e)
-
-# ---------------- IMAGE ---------------- #
-elif module == "🖼 Image":
-    import pytesseract
-    from PIL import Image
-    from deep_translator import GoogleTranslator
-    import platform
-
-    st.title("🖼 Image Translator")
-
-    if platform.system() == "Windows":
-        pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
-
-    file = st.file_uploader("Upload Image", type=["jpg", "png"])
-    lang = st.selectbox("Select Language", list(languages.keys()))
-
-    if file:
-        try:
-            img = Image.open(file)
-            st.image(img)
-
-            text = pytesseract.image_to_string(img)
-            st.write(text)
-
-            translated = GoogleTranslator(source="auto", target=languages[lang]).translate(text)
-            st.success(translated)
-
-        except Exception as e:
-            st.error(e)
-
-# ---------------- VIDEO (UPDATED FAST VERSION) ---------------- #
+# ---------------- VIDEO ---------------- #
 elif module == "🎬 Video":
-    from faster_whisper import WhisperModel
+    import whisper
+    from moviepy.editor import VideoFileClip
     from deep_translator import GoogleTranslator
     from gtts import gTTS
-    import yt_dlp
     import os
-    import glob
-    from moviepy.editor import AudioFileClip
 
-    st.title("⚡ Fast YouTube Video Translator")
+    st.title("🎬 Video Translator")
 
     language_options = {
         "Hindi": "hi",
-        "Marathi": "mr",
         "Tamil": "ta",
-        "Telugu": "te"
+        "Telugu": "te",
+        "Kannada": "kn",
+        "Malayalam": "ml",
+        "Bengali": "bn",
+        "Gujarati": "gu",
+        "Marathi": "mr"
     }
 
-    selected_language = st.selectbox("Select Language", list(language_options.keys()))
-    youtube_url = st.text_input("📺 Paste YouTube URL")
+    selected_language = st.selectbox("Select Target Language", list(language_options.keys()))
 
-    if st.button("🚀 Translate Video"):
+    uploaded_file = st.file_uploader("Upload Video", type=["mp4", "mov", "avi"])
 
-        if not youtube_url:
-            st.error("❌ Please enter YouTube URL")
-            st.stop()
+    if uploaded_file:
+        video_path = "video.mp4"
+        with open(video_path, "wb") as f:
+            f.write(uploaded_file.read())
 
-        for f in glob.glob("audio*"):
-            os.remove(f)
+        st.video(video_path)
 
-        st.info("⬇️ Downloading audio...")
+        if st.button("Translate Video"):
+            try:
+                st.info("🔄 Loading Model...")
+                model = whisper.load_model("tiny")   # ✅ FIXED (light model)
 
-        ydl_opts = {
-            'format': 'bestaudio',
-            'outtmpl': 'audio.%(ext)s',
-            'quiet': True
-        }
+                st.info("🎧 Extracting Audio...")
+                video = VideoFileClip(video_path)
+                audio_path = "audio.wav"
+                video.audio.write_audiofile(audio_path)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([youtube_url])
+                st.info("🧠 Transcribing...")
+                result = model.transcribe(audio_path)
+                text = result["text"]
 
-        audio_file = [f for f in os.listdir() if f.startswith("audio")][0]
+                st.subheader("📝 Original Text")
+                st.write(text)
 
-        st.info("✂️ Trimming audio...")
+                st.info("🌍 Translating...")
+                translated = GoogleTranslator(
+                    source="auto",
+                    target=language_options[selected_language]
+                ).translate(text)
 
-        clip = AudioFileClip(audio_file)
-        short_clip = clip.subclip(0, min(120, clip.duration))
-        short_clip.write_audiofile("short_audio.wav", verbose=False, logger=None)
+                st.subheader("🔤 Translated Text")
+                st.write(translated)
 
-        st.info("🧠 Transcribing...")
+                st.info("🔊 Generating Audio...")
+                tts = gTTS(translated, lang=language_options[selected_language])
+                tts.save("output.mp3")
 
-        model = WhisperModel("tiny", compute_type="int8")
-        segments, _ = model.transcribe("short_audio.wav", beam_size=1)
-        text = " ".join([seg.text for seg in segments])
+                st.audio("output.mp3")
 
-        st.subheader("📝 Original Text")
-        st.write(text)
+                os.remove(audio_path)
 
-        st.info("🌍 Translating...")
-
-        target_lang = language_options[selected_language]
-
-        try:
-            translated_text = GoogleTranslator(source="auto", target=target_lang).translate(text)
-        except:
-            translated_text = text
-
-        st.subheader("🔤 Translated Text")
-        st.write(translated_text)
-
-        st.info("🔊 Generating voice...")
-
-        tts = gTTS(translated_text, lang=target_lang)
-        tts.save("output.mp3")
-
-        st.audio("output.mp3")
-
-        with open("output.mp3", "rb") as f:
-            st.download_button("⬇️ Download Audio", f, "translated_audio.mp3")
-
-        st.success("⚡ Done (Fast Mode)")
+            except Exception as e:
+                st.error(e)
 
 # ---------------- PDF ---------------- #
 elif module == "📄 PDF":
     import fitz
     from gtts import gTTS
-    from PIL import Image
-    import pytesseract
-    import platform
     from deep_translator import GoogleTranslator
 
-    st.title("📄 PDF → Translate → Speech")
-
-    if platform.system() == "Windows":
-        pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+    st.title("📄 PDF Translator")
 
     uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
     lang = st.selectbox("Select Language", list(languages.keys()))
-    lang_code = languages[lang]
 
-    page_input = st.text_input("Page Number / Range (e.g. 1 or 2-5)", "1")
-
-    def get_pages(value):
+    if uploaded_file and st.button("Translate PDF"):
         try:
-            if "-" in value:
-                start, end = map(int, value.split("-"))
-                return list(range(start - 1, end))
-            else:
-                return [int(value) - 1]
-        except:
-            return None
+            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
 
-    if uploaded_file is not None and st.button("🚀 Convert"):
+            text = ""
+            for page in doc:
+                text += page.get_text()
 
-        pages = get_pages(page_input)
-        if pages is None:
-            st.error("Invalid page input")
-            st.stop()
+            st.subheader("📄 Extracted Text")
+            st.text_area("", text, height=200)
 
-        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+            translated = GoogleTranslator(
+                source="auto",
+                target=languages[lang]
+            ).translate(text)
 
-        extracted_text = []
+            st.subheader("🔤 Translated Text")
+            st.text_area("", translated, height=200)
 
-        for i in pages:
-            if i < 0 or i >= len(doc):
-                continue
+            tts = gTTS(translated, lang=languages[lang])
+            tts.save("pdf_audio.mp3")
 
-            page = doc.load_page(i)
-            text = page.get_text()
+            st.audio("pdf_audio.mp3")
 
-            if not text.strip():
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                text = pytesseract.image_to_string(img)
+        except Exception as e:
+            st.error(e)
+   
 
-            extracted_text.append(text)
+    
+    
+            
 
-        final_text = " ".join(extracted_text).strip()
+   
+  
 
-        st.text_area("Extracted Text", final_text, height=200)
 
-        translated_text = GoogleTranslator(source="auto", target=lang_code).translate(final_text)
+     
+  
+                
 
-        st.text_area("Translated Text", translated_text, height=200)
-
-        tts = gTTS(translated_text, lang=lang_code)
-        tts.save("pdf_audio.mp3")
-
-        st.audio("pdf_audio.mp3")
-        st.success("✅ Done!")
+            
+       
