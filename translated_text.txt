@@ -1,5 +1,6 @@
 streamlit
-SpeechRecognition
+SpeechRecognition==3.10.0
+pyaudio
 gtts
 deep-translator
 pillow
